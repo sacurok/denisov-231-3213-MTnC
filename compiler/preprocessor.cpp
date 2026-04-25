@@ -58,6 +58,11 @@ bool checkUnclosedComments(const string& code) {
         cout << "Ошибка: незакрытый многострочный комментарий\n";
         return false;
     }
+    else if (openCount < closeCount)
+    {
+        cout << "Ошибка: у многострочного комментария нет открывающего символа\n";
+        return false;
+    }
     return true;
 }
 

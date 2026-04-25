@@ -17,7 +17,7 @@ int main() {
     /* Выполняем
        арифметические
        операции */
-    result = a + b;
+    result           = a + b;
 
     // Условный оператор if-else
     if (result > 25) {
@@ -27,22 +27,10 @@ int main() {
         globalCounter = globalCounter - 1;
     }
 
-    // Цикл for для демонстрации
-    for (int i = 0; i < 3; i++) {
-        /* Внутри цикла
-           вызываем функцию */
-        int temp = addNumbers(i, globalCounter);
-        result = result + temp;
-    }
-
     // Цикл while
     while (globalCounter < 5) {
         globalCounter = globalCounter + 1;
     }
-
-    /* Логическое выражение
-       и возврат результата */
-    int isValid = (result > 0) && (globalCounter < 10);
 
     printf("Строка с // однострочным комментарием внутри\n");
     printf("Строка с /* многострочным комментарием */ внутри\n");
