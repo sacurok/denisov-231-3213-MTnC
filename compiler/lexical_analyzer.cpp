@@ -1,383 +1,344 @@
-//#include <iostream>
-//#include <fstream>
-//#include <string>
-//#include <vector>
-//#include <regex>
-//#include <map>
-//#include <set>
-//
-//using namespace std;
-//
-//// Типы лексем
-//enum TokenType {
-//    KEYWORD,
-//    IDENTIFIER,
-//    CONSTANT_INT,
-//    CONSTANT_FLOAT,
-//    CONSTANT_STRING,
-//    CONSTANT_BOOL,
-//    OPERATOR,
-//    DELIMITER,
-//    UNKNOWN,
-//    END_OF_FILE
-//};
-//
-//// Структура токена
-//struct Token {
-//    TokenType type;
-//    string value;
-//    int line;
-//    int column;
-//
-//    Token(TokenType t, const string& v, int l, int c)
-//        : type(t), value(v), line(l), column(c) {
-//    }
-//};
-//
-//// Класс лексического анализатора
-//class LexicalAnalyzer {
-//private:
-//    string source;
-//    size_t position;
-//    int currentLine;
-//    int currentColumn;
-//    vector<Token> tokens;
-//
-//    // Таблицы лексем
-//    set<string> keywords = {
-//        "int", "return", "if", "else", "for", "while", "include"
-//    };
-//
-//    set<string> operators = {
-//        "=", "+", "-", "*", "/", ">", "<", ">=", "<=", "==", "!=",
-//        "&&", "||", "!", "++", "--", "+=", "-=", "*=", "/="
-//    };
-//
-//    set<char> delimiters = {
-//        ';', ',', '(', ')', '{', '}', '#', '<', '>', '[', ']', ':'
-//    };
-//
-//    map<TokenType, string> typeNames = {
-//        {KEYWORD, "KEYWORD"},
-//        {IDENTIFIER, "IDENTIFIER"},
-//        {CONSTANT_INT, "CONSTANT_INT"},
-//        {CONSTANT_FLOAT, "CONSTANT_FLOAT"},
-//        {CONSTANT_STRING, "CONSTANT_STRING"},
-//        {CONSTANT_BOOL, "CONSTANT_BOOL"},
-//        {OPERATOR, "OPERATOR"},
-//        {DELIMITER, "DELIMITER"},
-//        {UNKNOWN, "UNKNOWN"},
-//        {END_OF_FILE, "END_OF_FILE"}
-//    };
-//
-//    // Проверка на допустимый символ
-//    bool isValidChar(char c) {
-//        return isalnum(c) || c == '_' || c == '.' || c == '"' ||
-//            operators.find(string(1, c)) != operators.end() ||
-//            delimiters.find(c) != delimiters.end() ||
-//            c == ' ' || c == '\t' || c == '\n' || c == '\r';
-//    }
-//
-//    // Проверка начала идентификатора
-//    bool isIdentifierStart(char c) {
-//        return isalpha(c) || c == '_';
-//    }
-//
-//    // Проверка символа идентификатора
-//    bool isIdentifierChar(char c) {
-//        return isalnum(c) || c == '_';
-//    }
-//
-//    // Проверка цифры
-//    bool isDigit(char c) {
-//        return isdigit(c);
-//    }
-//
-//    // Пропуск пробельных символов
-//    void skipWhitespace() {
-//        while (position < source.length() &&
-//            (source[position] == ' ' || source[position] == '\t' ||
-//                source[position] == '\n' || source[position] == '\r')) {
-//            if (source[position] == '\n') {
-//                currentLine++;
-//                currentColumn = 1;
-//            }
-//            else {
-//                currentColumn++;
-//            }
-//            position++;
-//        }
-//    }
-//
-//    // Чтение идентификатора или ключевого слова
-//    Token readIdentifier() {
-//        int startLine = currentLine;
-//        int startColumn = currentColumn;
-//        string value;
-//
-//        while (position < source.length() && isIdentifierChar(source[position])) {
-//            value += source[position];
-//            position++;
-//            currentColumn++;
-//        }
-//
-//        // Проверка на ключевое слово
-//        if (keywords.find(value) != keywords.end()) {
-//            return Token(KEYWORD, value, startLine, startColumn);
-//        }
-//
-//        return Token(IDENTIFIER, value, startLine, startColumn);
-//    }
-//
-//    // Чтение числа
-//    Token readNumber() {
-//        int startLine = currentLine;
-//        int startColumn = currentColumn;
-//        string value;
-//        bool hasDot = false;
-//
-//        while (position < source.length() && (isDigit(source[position]) || source[position] == '.')) {
-//            if (source[position] == '.') {
-//                if (hasDot) {
-//                    // Вторая точка подряд - ошибка
-//                    cout << "Ошибка: некорректное число (две точки подряд) в строке "
-//                        << currentLine << ", позиция " << currentColumn << endl;
-//                    return Token(UNKNOWN, value + ".", startLine, startColumn);
-//                }
-//                hasDot = true;
-//            }
-//            value += source[position];
-//            position++;
-//            currentColumn++;
-//        }
-//
-//        // Проверка, что число не заканчивается на точку
-//        if (hasDot && value.back() == '.') {
-//            cout << "Ошибка: число не может заканчиваться точкой в строке "
-//                << currentLine << ", позиция " << currentColumn << endl;
-//            return Token(UNKNOWN, value, startLine, startColumn);
-//        }
-//
-//        // Проверка, что после числа не идёт буква
-//        if (position < source.length() && isalpha(source[position])) {
-//            cout << "Ошибка: некорректное число (буква в цифровой константе) в строке "
-//                << currentLine << ", позиция " << currentColumn << endl;
-//            // Пропускаем ошибочные символы
-//            while (position < source.length() && isIdentifierChar(source[position])) {
-//                value += source[position];
-//                position++;
-//                currentColumn++;
-//            }
-//            return Token(UNKNOWN, value, startLine, startColumn);
-//        }
-//
-//        if (hasDot) {
-//            return Token(CONSTANT_FLOAT, value, startLine, startColumn);
-//        }
-//        return Token(CONSTANT_INT, value, startLine, startColumn);
-//    }
-//
-//    // Чтение строковой константы
-//    Token readString() {
-//        int startLine = currentLine;
-//        int startColumn = currentColumn;
-//        string value;
-//
-//        // Добавляем открывающую кавычку
-//        value += source[position];
-//        position++;
-//        currentColumn++;
-//
-//        bool closed = false;
-//        while (position < source.length()) {
-//            if (source[position] == '"') {
-//                value += source[position];
-//                position++;
-//                currentColumn++;
-//                closed = true;
-//                break;
-//            }
-//            else if (source[position] == '\n') {
-//                cout << "Ошибка: незакрытая строковая константа в строке "
-//                    << currentLine << ", позиция " << startColumn << endl;
-//                break;
-//            }
-//            value += source[position];
-//            position++;
-//            currentColumn++;
-//        }
-//
-//        if (!closed) {
-//            cout << "Ошибка: достигнут конец файла, строковая константа не закрыта" << endl;
-//        }
-//
-//        return Token(CONSTANT_STRING, value, startLine, startColumn);
-//    }
-//
-//    // Чтение оператора или разделителя
-//    Token readOperatorOrDelimiter() {
-//        int startLine = currentLine;
-//        int startColumn = currentColumn;
-//        string value;
-//
-//        // Пробуем прочитать двухсимвольный оператор
-//        if (position + 1 < source.length()) {
-//            string twoChars = source.substr(position, 2);
-//            if (operators.find(twoChars) != operators.end()) {
-//                value = twoChars;
-//                position += 2;
-//                currentColumn += 2;
-//                return Token(OPERATOR, value, startLine, startColumn);
-//            }
-//        }
-//
-//        // Читаем односимвольный оператор или разделитель
-//        value = source[position];
-//        if (operators.find(value) != operators.end()) {
-//            position++;
-//            currentColumn++;
-//            return Token(OPERATOR, value, startLine, startColumn);
-//        }
-//        else if (delimiters.find(value[0]) != delimiters.end()) {
-//            position++;
-//            currentColumn++;
-//            return Token(DELIMITER, value, startLine, startColumn);
-//        }
-//
-//        // Неизвестный символ
-//        cout << "Ошибка: недопустимый символ '" << value
-//            << "' в строке " << currentLine << ", позиция " << currentColumn << endl;
-//        position++;
-//        currentColumn++;
-//        return Token(UNKNOWN, value, startLine, startColumn);
-//    }
-//
-//public:
-//    LexicalAnalyzer(const string& code) : source(code), position(0), currentLine(1), currentColumn(1) {}
-//
-//    // Основной метод анализа
-//    vector<Token> analyze() {
-//        tokens.clear();
-//
-//        while (position < source.length()) {
-//            skipWhitespace();
-//
-//            if (position >= source.length()) {
-//                break;
-//            }
-//
-//            char current = source[position];
-//            Token token(UNKNOWN, "", currentLine, currentColumn);
-//
-//            if (isIdentifierStart(current)) {
-//                token = readIdentifier();
-//            }
-//            else if (isDigit(current)) {
-//                token = readNumber();
-//            }
-//            else if (current == '"') {
-//                token = readString();
-//            }
-//            else {
-//                token = readOperatorOrDelimiter();
-//            }
-//
-//            // Добавляем только значимые токены (не пробелы)
-//            if (token.type != UNKNOWN || token.value.empty()) {
-//                tokens.push_back(token);
-//            }
-//        }
-//
-//        // Добавляем маркер конца файла
-//        tokens.push_back(Token(END_OF_FILE, "EOF", currentLine, currentColumn));
-//
-//        return tokens;
-//    }
-//
-//    // Вывод результатов
-//    void printResults() {
-//        cout << "\nЛексема" << string(40, ' ') << "| Тип" << endl;
-//        cout << string(80, '-') << endl;
-//
-//        for (const auto& token : tokens) {
-//            if (token.type != END_OF_FILE) {
-//                cout << token.value;
-//                // Выравнивание
-//                if (token.value.length() < 50) {
-//                    cout << string(50 - token.value.length(), ' ');
-//                }
-//                cout << "| " << typeNames[token.type] << endl;
-//            }
-//        }
-//
-//        cout << "\nПоследовательность токенов:\n[";
-//        for (size_t i = 0; i < tokens.size(); i++) {
-//            if (tokens[i].type != END_OF_FILE) {
-//                cout << "(" << typeNames[tokens[i].type] << ", " << tokens[i].value << ")";
-//                if (i < tokens.size() - 2) cout << ", ";
-//            }
-//        }
-//        cout << "]\n";
-//
-//        cout << "\nЛексический анализ завершён. Обнаружено " << tokens.size() - 1 << " токенов.\n";
-//
-//        // Проверка на наличие ошибок
-//        bool hasErrors = false;
-//        for (const auto& token : tokens) {
-//            if (token.type == UNKNOWN) {
-//                hasErrors = true;
-//                break;
-//            }
-//        }
-//
-//        if (!hasErrors) {
-//            cout << "Ошибок не найдено.\n";
-//        }
-//        else {
-//            cout << "Обнаружены лексические ошибки.\n";
-//        }
-//    }
-//
-//    // Сохранение токенов в файл
-//    void saveTokensToFile(const string& filename) {
-//        ofstream out(filename);
-//        for (const auto& token : tokens) {
-//            if (token.type != END_OF_FILE) {
-//                out << typeNames[token.type] << " : " << token.value << endl;
-//            }
-//        }
-//        out.close();
-//    }
-//};
-//
-//int main() {
-//    setlocale(LC_ALL, "Russian");
-//
-//    // Читаем очищенный код из ЛР1
-//    ifstream input("test_cleaned.c");
-//    if (!input.is_open()) {
-//        cout << "Ошибка: не удалось открыть очищенный файл test_cleaned.c" << endl;
-//        cout << "Сначала запустите препроцессор из лабораторной работы 1" << endl;
-//        return 1;
-//    }
-//
-//    string code((istreambuf_iterator<char>(input)), istreambuf_iterator<char>());
-//    input.close();
-//
-//    cout << "=== ЛЕКСИЧЕСКИЙ АНАЛИЗАТОР ===" << endl;
-//    cout << "Анализируемый код:\n" << code << endl;
-//    cout << string(80, '=') << endl;
-//
-//    // Запуск лексического анализатора
-//    LexicalAnalyzer analyzer(code);
-//    vector<Token> tokens = analyzer.analyze();
-//
-//    // Вывод результатов
-//    analyzer.printResults();
-//
-//    // Сохранение результатов
-//    analyzer.saveTokensToFile("tokens.txt");
-//    cout << "\nРезультаты сохранены в файл tokens.txt" << endl;
-//
-//    return 0;
-//}
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <vector>
+#include <set>
+#include <map>
+#include <regex>
+#include <iomanip>
+
+using namespace std;
+
+// Таблицы лексем
+const set<string> KEYWORDS = {
+    "int", "return", "if", "else", "while", "for", "break", "case", "char", "const", "continue",
+    "double", "float", "switch", "void"
+};
+
+const set<string> OPERATORS = {
+    "+", "-", "*", "/", "%", "=", "+=", "-=", "*=", "/=", "%=", "==", "!=", "<", ">", "<=", ">=",
+    "&&", "||", "!", "&", "|", "^", "~", "<<", ">>", "++", "--", "->", "."
+};
+
+const set<char> DELIMITERS = {
+    ';', ',', '(', ')', '{', '}', '[', ']', ':'
+};
+
+// Типы лексем
+enum TokenType {
+    KEYWORD,
+    IDENTIFIER,
+    CONSTANT_INT,
+    CONSTANT_FLOAT,
+    CONSTANT_STRING,
+    CONSTANT_CHAR,
+    OPERATOR,
+    DELIMITER,
+    PREPROCESSOR,
+    UNKNOWN
+};
+
+string tokenTypeName(TokenType type) {
+    switch (type) {
+    case KEYWORD: return "KEYWORD";
+    case IDENTIFIER: return "IDENTIFIER";
+    case CONSTANT_INT: return "CONSTANT_INT";
+    case CONSTANT_FLOAT: return "CONSTANT_FLOAT";
+    case CONSTANT_STRING: return "CONSTANT_STRING";
+    case CONSTANT_CHAR: return "CONSTANT_CHAR";
+    case OPERATOR: return "OPERATOR";
+    case DELIMITER: return "DELIMITER";
+    case PREPROCESSOR: return "PREPROCESSOR";
+    default: return "UNKNOWN";
+    }
+}
+
+struct Token {
+    TokenType type;
+    string value;
+    int line;
+};
+
+struct LexError {
+    string message;
+    string details;
+    int line;
+};
+
+// Лексический анализатор
+class Lexer {
+public:
+    vector<Token> tokens;
+    vector<LexError> errors;
+
+    void analyze(const string& code) {
+        tokens.clear();
+        errors.clear();
+
+        size_t i = 0;
+        int line = 1;
+        size_t n = code.size();
+
+        while (i < n) {
+            // Перевод строки
+            if (code[i] == '\n') {
+                line++;
+                i++;
+                continue;
+            }
+
+            // Пробельные символы
+            if (isspace((unsigned char)code[i])) {
+                i++;
+                continue;
+            }
+
+            // Препроцессорные директивы (строки начинающиеся с #)
+            if (code[i] == '#') {
+                size_t start = i;
+                while (i < n && code[i] != '\n') i++;
+                tokens.push_back({ PREPROCESSOR, code.substr(start, i - start), line });
+                continue;
+            }
+
+            // Строковые константы
+            if (code[i] == '"') {
+                size_t start = i;
+                i++;
+                bool closed = false;
+                while (i < n) {
+                    if (code[i] == '\\' && i + 1 < n) {
+                        i += 2;
+                        continue;
+                    }
+                    if (code[i] == '"') {
+                        i++;
+                        closed = true;
+                        break;
+                    }
+                    if (code[i] == '\n') break;
+                    i++;
+                }
+                if (!closed) {
+                    errors.push_back({ "Незакрытый строковый литерал", 
+                        "Строковый литерал не имеет закрывающей кавычки", line});
+                }
+                else {
+                    tokens.push_back({ CONSTANT_STRING, code.substr(start, i - start), line });
+                }
+                continue;
+            }
+
+            // Символьные константы
+            if (code[i] == '\'') {
+                size_t start = i;
+                i++;
+                bool closed = false;
+                while (i < n) {
+                    if (code[i] == '\\' && i + 1 < n) {
+                        i += 2;
+                        continue;
+                    }
+                    if (code[i] == '\'') {
+                        i++;
+                        closed = true;
+                        break;
+                    }
+                    if (code[i] == '\n') break;
+                    i++;
+                }
+                if (!closed) {
+                    errors.push_back({ "Незакрытый символьный литерал",
+                        "Символьный литерал не имеет закрывающей кавычки", line});
+                }
+                else {
+                    tokens.push_back({ CONSTANT_CHAR, code.substr(start, i - start), line });
+                }
+                continue;
+            }
+
+            // Числовые константы
+            if (isdigit((unsigned char)code[i])) {
+                size_t start = i;
+                bool isFloat = false;
+                bool hasTwoDots = false;
+                bool hasLetters = false;
+                int dotCount = 0;
+
+                // Читаем число
+                while (i < n && (isdigit((unsigned char)code[i]) || code[i] == '.' ||
+                    (i > start && isalpha((unsigned char)code[i])))) {
+
+                    if (code[i] == '.') {
+                        dotCount++;
+                        if (dotCount == 1) {
+                            isFloat = true;
+                        }
+                        if (dotCount > 1) {
+                            hasTwoDots = true;
+                        }
+                    }
+                    else if (isalpha((unsigned char)code[i])) {
+                        hasLetters = true;
+                    }
+                    i++;
+                }
+
+                string lexeme = code.substr(start, i - start);
+
+                if (hasTwoDots) {
+                    errors.push_back({ "Ошибка в числовой константе",
+                        "Число '" + lexeme + "' содержит две точки подряд", line });
+                }
+                else if (hasLetters) {
+                    errors.push_back({ "Ошибка в числовой константе",
+                        "Число '" + lexeme + "' содержит недопустимые символы", line });
+                }
+                else if (isFloat) {
+                    tokens.push_back({ CONSTANT_FLOAT, lexeme, line });
+                }
+                else {
+                    tokens.push_back({ CONSTANT_INT, lexeme, line });
+                }
+                continue;
+            }
+
+            // Идентификатор или ключевое слово
+            if (isalpha((unsigned char)code[i]) || code[i] == '_') {
+                size_t start = i;
+                while (i < n && (isalnum((unsigned char)code[i]) || code[i] == '_')) i++;
+                string lexeme = code.substr(start, i - start);
+                if (KEYWORDS.count(lexeme)) {
+                    tokens.push_back({ KEYWORD, lexeme, line });
+                }
+                else {
+                    tokens.push_back({ IDENTIFIER, lexeme, line });
+                }
+                continue;
+            }
+
+            // Операторы (двухсимвольные и односимвольные)
+            {
+                // Двухсимвольный оператор
+                if (i + 1 < n) {
+                    string two = code.substr(i, 2);
+                    if (OPERATORS.count(two)) {
+                        tokens.push_back({ OPERATOR, two, line });
+                        i += 2;
+                        continue;
+                    }
+                }
+
+                // Односимвольный оператор
+                string one = code.substr(i, 1);
+                if (OPERATORS.count(one)) {
+                    tokens.push_back({ OPERATOR, one, line });
+                    i++;
+                    continue;
+                }
+            }
+
+            // Разделители
+            if (DELIMITERS.count(code[i])) {
+                tokens.push_back({ DELIMITER, string(1, code[i]), line });
+                i++;
+                continue;
+            }
+
+            // Неизвестный оператор
+            if (!isalnum((unsigned char)code[i]) && !isspace((unsigned char)code[i]) &&
+                code[i] != '\n' && code[i] != '\"' && code[i] != '\'') {
+                errors.push_back({ "Неизвестный оператор",
+                    "Символ '" + string(1, code[i]) + "' не является допустимым оператором", line });
+            }
+            else {
+                // Недопустимый символ
+                errors.push_back({ "Недопустимый символ",
+                    "Символ '" + string(1, code[i]) + "' (код " + to_string((int)(unsigned char)code[i]) +
+                    ") не распознан в исходном коде", line });
+            }
+            i++;
+        }
+    }
+};
+
+// Функции вывода
+void printTable(const vector<Token>& tokens) {
+    cout << "\n";
+    cout << "|" << left << setw(30) << "Лексема"
+         << "|" << left << setw(20) << "Тип"
+         << "|" << left << "Строка\n";
+
+    cout << "+" << string(30, '-') << "+"
+        << string(20, '-') << "+"
+        << string(8, '-') << "+\n";
+
+    for (size_t i = 0; i < tokens.size(); i++) {
+        cout << "|" << left << setw(30) << tokens[i].value
+             << "|" << left << setw(20) << tokenTypeName(tokens[i].type)
+             << "|" << left << tokens[i].line << "\n";
+    }
+    cout << string(60, '-') << "\n";
+}
+
+void printSequence(const vector<Token>& tokens) {
+    cout << "\nПоследовательность лексем:\n[";
+    for (size_t i = 0; i < tokens.size(); i++) {
+        cout << "(" << tokenTypeName(tokens[i].type) << ", " << tokens[i].value << ")";
+        if (i + 1 < tokens.size()) cout << ", ";
+    }
+    cout << "]\n";
+}
+
+void printErrors(const vector<LexError>& errors) {
+    if (errors.empty()) return;
+    cout << "\n";
+    cout << "Лексические ошибки\n";
+    for (const auto& e : errors) {
+        cout << "Строка " << e.line << ": [" << e.message << "] - " << e.details << "\n";
+    }
+}
+
+int main() {
+    setlocale(LC_ALL, "Russian");
+
+    ifstream input("test_cleaned.c");
+    if (!input.is_open()) {
+        cerr << "Ошибка: не удалось открыть файл с очищенной программой\n";
+        return 1;
+    }
+
+    string code((istreambuf_iterator<char>(input)), istreambuf_iterator<char>());
+    input.close();
+
+    Lexer lexer;
+    lexer.analyze(code);
+
+    printTable(lexer.tokens);
+    printSequence(lexer.tokens);
+    printErrors(lexer.errors);
+
+    cout << "\n";
+    if (lexer.errors.empty()) {
+        cout << "Лексический анализ завершён успешно.\n";
+        cout << "Обнаружено " << lexer.tokens.size() << " токенов\n";
+        // Запись результата в файл
+        ofstream out("lexems.txt");
+        /*for (size_t i = 0; i < lexer.tokens.size(); i++) {
+            out << tokenTypeName(lexer.tokens[i].type) << "\t" << lexer.tokens[i].value << "\n";
+        }*/
+         for (size_t i = 0; i < lexer.tokens.size(); i++) {
+             out << "(" << tokenTypeName(lexer.tokens[i].type) << ", " << lexer.tokens[i].value << ")";
+             if (i + 1 < lexer.tokens.size()) out << ", ";
+         }
+        out.close();
+        cout << "Последовательность лексем записана в lexems.txt\n";
+    }
+    else {
+        cout << "Лексический анализ завершён с ошибками.\n";
+        cout << "Лексемы не были записаны в файл.\n";
+    }
+
+    return 0;
+}
