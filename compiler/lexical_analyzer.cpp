@@ -7,6 +7,7 @@
 #include <map>
 #include <regex>
 #include <iomanip>
+#include "common.cpp"
 
 using namespace std;
 
@@ -26,18 +27,18 @@ const set<char> DELIMITERS = {
 };
 
 // Типы лексем
-enum TokenType {
-    KEYWORD,
-    IDENTIFIER,
-    CONSTANT_INT,
-    CONSTANT_FLOAT,
-    CONSTANT_STRING,
-    CONSTANT_CHAR,
-    OPERATOR,
-    DELIMITER,
-    PREPROCESSOR,
-    UNKNOWN
-};
+//enum TokenType {
+//    KEYWORD,
+//    IDENTIFIER,
+//    CONSTANT_INT,
+//    CONSTANT_FLOAT,
+//    CONSTANT_STRING,
+//    CONSTANT_CHAR,
+//    OPERATOR,
+//    DELIMITER,
+//    PREPROCESSOR,
+//    UNKNOWN
+//};
 
 string tokenTypeName(TokenType type) {
     switch (type) {
@@ -54,11 +55,11 @@ string tokenTypeName(TokenType type) {
     }
 }
 
-struct Token {
-    TokenType type;
-    string value;
-    int line;
-};
+//struct Token {
+//    TokenType type;
+//    string value;
+//    int line;
+//};
 
 struct LexError {
     string message;
@@ -95,9 +96,38 @@ public:
             }
 
             // Препроцессорные директивы (строки начинающиеся с #)
-            if (code[i] == '#') {
+            /*if (code[i] == '#') {
                 size_t start = i;
                 while (i < n && code[i] != '\n') i++;
+                tokens.push_back({ PREPROCESSOR, code.substr(start, i - start), line });
+                continue;
+            }*/
+
+            // Препроцессорные директивы (строки начинающиеся с #)
+            if (code[i] == '#') {
+                size_t start = i;
+                i++;
+
+                while (i < n && isspace((unsigned char)code[i])) {
+                    i++;
+                }
+
+                size_t directiveStart = i;
+                while (i < n && isalpha((unsigned char)code[i])) {
+                    i++;
+                }
+
+                string directive = code.substr(directiveStart, i - directiveStart);
+
+                // Проверяем, является ли директива "include"
+                if (directive != "include") {
+                    errors.push_back({ "Ошибка в препроцессорной директиве include",
+                        "Директива '" + directive + "' не распознана. Возможно, вы имели в виду 'include'", line });
+                }
+
+                while (i < n && code[i] != '\n') {
+                    i++;
+                }
                 tokens.push_back({ PREPROCESSOR, code.substr(start, i - start), line });
                 continue;
             }
@@ -164,6 +194,7 @@ public:
                 bool isFloat = false;
                 bool hasTwoDots = false;
                 bool hasLetters = false;
+                bool hasComma = false;
                 int dotCount = 0;
 
                 // Читаем число
@@ -185,6 +216,23 @@ public:
                     i++;
                 }
 
+                if (i < n && code[i] == ',') {
+                    // Проверяем, что перед запятой была цифра и после запятой тоже цифра
+                    size_t tempPos = i + 1;
+                    if (tempPos < n && isdigit((unsigned char)code[tempPos])) {
+                        hasComma = true;
+                        // Читаем дальше, чтобы включить в лексему всё число с запятой
+                        while (tempPos < n && (isdigit((unsigned char)code[tempPos]) || code[tempPos] == ',')) {
+                            if (code[tempPos] == ',') {
+                                tempPos++;
+                                continue;
+                            }
+                            tempPos++;
+                        }
+                        i = tempPos;
+                    }
+                }
+
                 string lexeme = code.substr(start, i - start);
 
                 if (hasTwoDots) {
@@ -194,6 +242,10 @@ public:
                 else if (hasLetters) {
                     errors.push_back({ "Ошибка в числовой константе",
                         "Число '" + lexeme + "' содержит недопустимые символы", line });
+                }
+                else if (hasComma) {
+                    errors.push_back({ "Ошибка в числовой константе",
+                        "Число '" + lexeme + "' содержит запятую.", line });
                 }
                 else if (isFloat) {
                     tokens.push_back({ CONSTANT_FLOAT, lexeme, line });
@@ -300,7 +352,7 @@ void printErrors(const vector<LexError>& errors) {
     }
 }
 
-int main() {
+int runLexer() {
     setlocale(LC_ALL, "Russian");
 
     ifstream input("test_cleaned.c");
@@ -315,8 +367,8 @@ int main() {
     Lexer lexer;
     lexer.analyze(code);
 
-    printTable(lexer.tokens);
-    printSequence(lexer.tokens);
+    //printTable(lexer.tokens);
+    //printSequence(lexer.tokens);
     printErrors(lexer.errors);
 
     cout << "\n";
@@ -329,7 +381,7 @@ int main() {
             out << tokenTypeName(lexer.tokens[i].type) << "\t" << lexer.tokens[i].value << "\n";
         }*/
          for (size_t i = 0; i < lexer.tokens.size(); i++) {
-             out << "(" << tokenTypeName(lexer.tokens[i].type) << ", " << lexer.tokens[i].value << ")";
+             out << "(" << tokenTypeName(lexer.tokens[i].type) << ", " << lexer.tokens[i].value << ", " << lexer.tokens[i].line << ")";
              if (i + 1 < lexer.tokens.size()) out << ", ";
          }
         out.close();

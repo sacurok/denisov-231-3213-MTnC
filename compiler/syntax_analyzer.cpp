@@ -180,19 +180,35 @@ string astKindName(ASTKind k) {
     }
 }
 
+//struct ASTNode {
+//    ASTKind kind;
+//    string attr;
+//    vector<shared_ptr<ASTNode>> children;
+//
+//    ASTNode(ASTKind k, string a = "") : kind(k), attr(move(a)) {}
+//    void addChild(shared_ptr<ASTNode> c) { if (c) children.push_back(c); }
+//};
+
 struct ASTNode {
     ASTKind kind;
     string attr;
+    int line;
     vector<shared_ptr<ASTNode>> children;
 
-    ASTNode(ASTKind k, string a = "") : kind(k), attr(move(a)) {}
-    void addChild(shared_ptr<ASTNode> c) { if (c) children.push_back(c); }
+    ASTNode(ASTKind k, string a = "", int l = 0) : kind(k), attr(move(a)), line(l) {}
+    void addChild(shared_ptr<ASTNode> c) {
+        if (c) children.push_back(c);
+    }
 };
 
 using NodePtr = shared_ptr<ASTNode>;
 
-NodePtr makeNode(ASTKind k, const string& a = "") {
-    return make_shared<ASTNode>(k, a);
+//NodePtr makeNode(ASTKind k, const string& a = "") {
+//    return make_shared<ASTNode>(k, a);
+//}
+
+NodePtr makeNode(ASTKind k, const string& a = "", int l = 0) {
+    return make_shared<ASTNode>(k, a, l);
 }
 
 // Печать AST
@@ -223,30 +239,41 @@ public:
     explicit Parser(vector<Token> toks) : tokens(move(toks)), pos(0) {}
 
     NodePtr parse() {
-        auto root = makeNode(ASTKind::Program);
+        auto root = makeNode(ASTKind::Program, "", cur().line);
         while (!at(TOK_EOF)) {
             if (cur().type == PREPROCESSOR) {
-                root->addChild(makeNode(ASTKind::Preprocessor, cur().value));
+                root->addChild(makeNode(ASTKind::Preprocessor, cur().value, cur().line));
                 advance();
             }
-            else {
+            else if (cur().type == KEYWORD && isTypeKeyword(cur().value)) {
+                // Обычный путь: объявление переменной или функции
                 auto decl = parseTopLevel();
-                if (decl) {
-                    root->addChild(decl);
-                }
-                else if (!at(TOK_EOF)) {
-                    addError("Неожиданный токен на верхнем уровне",
-                        "объявление или определение функции", cur().value, cur().line);
-                    advance();
-                }
+                if (decl) root->addChild(decl);
             }
+            else if (!at(TOK_EOF)) {
+                // Глобальное выражение (например, addNumbers();)
+                auto stmt = parseExprStmt();
+                if (stmt) root->addChild(stmt);
+            }
+            //else {
+            //    auto decl = parseTopLevel();
+            //    if (decl) {
+            //        root->addChild(decl);
+            //    }
+            //    else if (!at(TOK_EOF)) {
+            //        addError("Неожиданный токен на верхнем уровне",
+            //            "объявление или определение функции", cur().value, cur().line);
+            //        /*advance();*/
+            //        syncToSemicolon();
+            //    }
+            //}
         }
         return root;
     }
 
 private:
     vector<Token> tokens;
-    size_t        pos;
+    size_t pos;
 
     // Вспомогательные методы
     Token& cur() { return tokens[pos]; }
@@ -326,8 +353,8 @@ private:
 
     // Разбор определения функции
     NodePtr parseFuncDef(const string& type, const string& name) {
-        auto node = makeNode(ASTKind::FuncDef, name);
-        node->addChild(makeNode(ASTKind::TypeSpec, type));
+        auto node = makeNode(ASTKind::FuncDef, name, cur().line);
+        node->addChild(makeNode(ASTKind::TypeSpec, type, cur().line));
 
         expect(DELIMITER, "(");
         node->addChild(parseParamList());
@@ -350,7 +377,7 @@ private:
 
     // Разбор списка параметров функции
     NodePtr parseParamList() {
-        auto node = makeNode(ASTKind::ParamList);
+        auto node = makeNode(ASTKind::ParamList, "", cur().line);
         if (atVal(")")) return node;
         if (atVal("void")) { advance(); return node; }
 
@@ -382,7 +409,7 @@ private:
 
     // Разбор одного параметра функции
     NodePtr parseParam() {
-        auto node = makeNode(ASTKind::Param);
+        auto node = makeNode(ASTKind::Param, "", cur().line);
         if (cur().type != KEYWORD || !isTypeKeyword(cur().value)) {
             addError("Ожидался тип параметра", "ключевое слово типа",
                 "'" + cur().value + "'", cur().line);
@@ -391,7 +418,7 @@ private:
         string typeStr = advance().value;
         while (cur().type == KEYWORD && isTypeKeyword(cur().value))
             typeStr += " " + advance().value;
-        node->addChild(makeNode(ASTKind::TypeSpec, typeStr));
+        node->addChild(makeNode(ASTKind::TypeSpec, typeStr, cur().line));
 
         if (cur().type == IDENTIFIER) {
             node->attr = advance().value;
@@ -405,8 +432,8 @@ private:
 
     // Разбор глобального объявления переменной
     NodePtr parseGlobalVarDecl(const string& type, const string& name) {
-        auto node = makeNode(ASTKind::VarDecl, name);
-        node->addChild(makeNode(ASTKind::TypeSpec, type));
+        auto node = makeNode(ASTKind::VarDecl, name, cur().line);
+        node->addChild(makeNode(ASTKind::TypeSpec, type, cur().line));
         if (atVal("=")) { advance(); node->addChild(parseExpr()); }
         if (!expect(DELIMITER, ";")) syncToSemicolon();
         return node;
@@ -414,7 +441,7 @@ private:
 
     // Разбор блока кода в фигурных скобках
     NodePtr parseBlock() {
-        auto node = makeNode(ASTKind::Block);
+        auto node = makeNode(ASTKind::Block, "", cur().line);
         int startLine = cur().line;
         if (!expect(DELIMITER, "{")) return node;
 
@@ -457,8 +484,8 @@ private:
             return nullptr;
         }
         string name = advance().value;
-        auto node = makeNode(ASTKind::VarDecl, name);
-        node->addChild(makeNode(ASTKind::TypeSpec, typeStr));
+        auto node = makeNode(ASTKind::VarDecl, name, cur().line);
+        node->addChild(makeNode(ASTKind::TypeSpec, typeStr, cur().line));
 
         if (atVal("=")) { advance(); node->addChild(parseExpr()); }
         if (!expect(DELIMITER, ";")) syncToSemicolon();
@@ -468,7 +495,7 @@ private:
     // Разбор возврата значения функции return
     NodePtr parseReturnStmt() {
         advance(); // 'return'
-        auto node = makeNode(ASTKind::ReturnStmt);
+        auto node = makeNode(ASTKind::ReturnStmt, "", cur().line);
         if (!atVal(";")) node->addChild(parseExpr());
         if (!expect(DELIMITER, ";")) syncToSemicolon();
         return node;
@@ -477,7 +504,7 @@ private:
     // Разбор ветвления if else
     NodePtr parseIfStmt() {
         advance(); // 'if'
-        auto node = makeNode(ASTKind::IfStmt);
+        auto node = makeNode(ASTKind::IfStmt, "", cur().line);
         expect(DELIMITER, "(");
         node->addChild(parseExpr());
         expect(DELIMITER, ")");
@@ -528,7 +555,7 @@ private:
     // Разбор цикла while
     NodePtr parseWhileStmt() {
         advance(); // 'while'
-        auto node = makeNode(ASTKind::WhileStmt);
+        auto node = makeNode(ASTKind::WhileStmt, "", cur().line);
         expect(DELIMITER, "(");
         node->addChild(parseExpr());
         expect(DELIMITER, ")");
@@ -555,11 +582,11 @@ private:
         if (!expect(DELIMITER, ";")) syncToSemicolon();
 
         if (expr && expr->kind == ASTKind::BinaryExpr && expr->attr == "=") {
-            auto node = makeNode(ASTKind::AssignStmt);
+            auto node = makeNode(ASTKind::AssignStmt, "", expr->line);
             for (auto& c : expr->children) node->addChild(c);
             return node;
         }
-        auto node = makeNode(ASTKind::ExprStmt);
+        auto node = makeNode(ASTKind::ExprStmt, "", expr ? expr->line : cur().line);
         node->addChild(expr);
         return node;
     }
@@ -575,7 +602,7 @@ private:
             if (op == "=" || op == "+=" || op == "-=" || op == "*=" || op == "/=" || op == "%=") {
                 string o = advance().value;
                 auto right = parseAssign();
-                auto node = makeNode(ASTKind::BinaryExpr, o);
+                auto node = makeNode(ASTKind::BinaryExpr, o, left ? left->line : cur().line);
                 node->addChild(left);
                 node->addChild(right);
                 return node;
@@ -589,7 +616,7 @@ private:
         while (atVal("||")) {
             string op = advance().value;
             auto right = parseLogicalAnd();
-            auto node = makeNode(ASTKind::BinaryExpr, op);
+            auto node = makeNode(ASTKind::BinaryExpr, op, left->line);
             node->addChild(left); node->addChild(right); left = node;
         }
         return left;
@@ -600,7 +627,7 @@ private:
         while (atVal("&&")) {
             string op = advance().value;
             auto right = parseEquality();
-            auto node = makeNode(ASTKind::BinaryExpr, op);
+            auto node = makeNode(ASTKind::BinaryExpr, op, left->line);
             node->addChild(left); node->addChild(right); left = node;
         }
         return left;
@@ -611,7 +638,7 @@ private:
         while (atVal("==") || atVal("!=")) {
             string op = advance().value;
             auto right = parseRelational();
-            auto node = makeNode(ASTKind::BinaryExpr, op);
+            auto node = makeNode(ASTKind::BinaryExpr, op, left->line);
             node->addChild(left); node->addChild(right); left = node;
         }
         return left;
@@ -633,7 +660,7 @@ private:
             if (atVal("<") || atVal(">") || atVal("<=") || atVal(">=")) {
                 string op = advance().value;
                 auto right = parseAdditive();
-                auto node = makeNode(ASTKind::BinaryExpr, op);
+                auto node = makeNode(ASTKind::BinaryExpr, op, left->line);
                 node->addChild(left);
                 node->addChild(right);
                 left = node;
@@ -649,7 +676,7 @@ private:
                 addError("Пропущен оператор сравнения", "оператор сравнения",
                     "'" + cur().value + "'", cur().line);
                 auto right = parseAdditive();
-                auto node = makeNode(ASTKind::BinaryExpr, "<missing_op>");
+                auto node = makeNode(ASTKind::BinaryExpr, "<missing_op>", left->line);
                 node->addChild(left);
                 node->addChild(right);
                 left = node;
@@ -665,7 +692,7 @@ private:
         while (atVal("+") || atVal("-")) {
             string op = advance().value;
             auto right = parseMultiplicative();
-            auto node = makeNode(ASTKind::BinaryExpr, op);
+            auto node = makeNode(ASTKind::BinaryExpr, op, left->line);
             node->addChild(left); node->addChild(right); left = node;
         }
         return left;
@@ -676,7 +703,7 @@ private:
         while (atVal("*") || atVal("/") || atVal("%")) {
             string op = advance().value;
             auto right = parseUnary();
-            auto node = makeNode(ASTKind::BinaryExpr, op);
+            auto node = makeNode(ASTKind::BinaryExpr, op, left->line);
             node->addChild(left); node->addChild(right); left = node;
         }
         return left;
@@ -687,7 +714,7 @@ private:
             const string& op = cur().value;
             if (op == "+" || op == "-" || op == "!" || op == "~" || op == "*" || op == "&" || op == "++" || op == "--") {
                 string o = advance().value;
-                auto node = makeNode(ASTKind::UnaryExpr, o);
+                auto node = makeNode(ASTKind::UnaryExpr, o, cur().line);
                 node->addChild(parseUnary());
                 return node;
             }
@@ -700,9 +727,9 @@ private:
         while (true) {
             if (atVal("(")) {
                 advance();
-                auto call = makeNode(ASTKind::CallExpr, expr ? expr->attr : "?");
+                auto call = makeNode(ASTKind::CallExpr, expr ? expr->attr : "?", expr ? expr->line : cur().line);
                 call->addChild(expr);
-                auto args = makeNode(ASTKind::ArgList);
+                auto args = makeNode(ASTKind::ArgList, "", cur().line);
                 if (!atVal(")")) {
                     args->addChild(parseExpr());
                     while (atVal(",")) { advance(); args->addChild(parseExpr()); }
@@ -713,7 +740,7 @@ private:
             }
             else if (atVal("[")) {
                 advance();
-                auto node = makeNode(ASTKind::BinaryExpr, "[]");
+                auto node = makeNode(ASTKind::BinaryExpr, "[]", expr->line);
                 node->addChild(expr);
                 node->addChild(parseExpr());
                 expect(DELIMITER, "]");
@@ -721,7 +748,7 @@ private:
             }
             else if (atVal("++") || atVal("--")) {
                 string op = advance().value;
-                auto node = makeNode(ASTKind::UnaryExpr, "post" + op);
+                auto node = makeNode(ASTKind::UnaryExpr, "post" + op, expr->line);
                 node->addChild(expr);
                 expr = node;
             }
@@ -731,11 +758,11 @@ private:
     }
 
     NodePtr parsePrimary() {
-        if (cur().type == IDENTIFIER) return makeNode(ASTKind::Identifier, advance().value);
-        if (cur().type == CONSTANT_INT) return makeNode(ASTKind::IntLiteral, advance().value);
-        if (cur().type == CONSTANT_FLOAT) return makeNode(ASTKind::FloatLiteral, advance().value);
-        if (cur().type == CONSTANT_STRING) return makeNode(ASTKind::StringLiteral, advance().value);
-        if (cur().type == CONSTANT_CHAR) return makeNode(ASTKind::CharLiteral, advance().value);
+        if (cur().type == IDENTIFIER) { Token t = advance(); return makeNode(ASTKind::Identifier, t.value, t.line); }
+        if (cur().type == CONSTANT_INT) { Token t = advance(); return makeNode(ASTKind::IntLiteral, t.value, t.line); }
+        if (cur().type == CONSTANT_FLOAT) { Token t = advance(); return makeNode(ASTKind::FloatLiteral, t.value, t.line); }
+        if (cur().type == CONSTANT_STRING) { Token t = advance(); return makeNode(ASTKind::StringLiteral, t.value, t.line); }
+        if (cur().type == CONSTANT_CHAR) { Token t = advance(); return makeNode(ASTKind::CharLiteral, t.value, t.line); }
         if (atVal("(")) {
             advance();
             auto expr = parseExpr();

@@ -94,7 +94,7 @@ void removeEmptyLines(string& code) {
     code = regex_replace(code, regex("\n\\s*\n"), "\n");
 }
 
-int main() {
+int runPreprocessor() {
     setlocale(LC_ALL, "Russian");
 
     ifstream input("test.c");
@@ -103,7 +103,7 @@ int main() {
         return 1;
     }
 
-    cout << "Файл с программой успешно открыт\n";
+    //cout << "Файл с программой успешно открыт\n";
 
     string code((istreambuf_iterator<char>(input)),
         istreambuf_iterator<char>());
@@ -118,26 +118,27 @@ int main() {
     // Удаление комментариев
     removeMultiLineComments(code);
     removeSingleLineComments(code);
-    cout << "Комментарии удалены\n";
+    //cout << "Комментарии удалены\n";
 
     // Очистка пробелов и пустых строк
     cleanWhitespace(code);
     removeEmptyLines(code);
-    cout << "Пробелы и пустые строки очищены\n";
+    //cout << "Пробелы и пустые строки очищены\n";
 
     // Восстанавление строк
     restoreStrings(code, strings);
-    cout << "Строки восстановлены\n";
+    //cout << "Строки восстановлены\n";
 
     // Запись результата
     ofstream output("test_cleaned.c");
     output << code;
     output.close();
 
+    cout << "Стадия препроцессора выполнена успешно\n";
     cout << "Результат записан в файл test_cleaned.c\n";
     
-    cout << "\nРезультат:\n\n";
-    cout << code;
+    /*cout << "\nРезультат:\n\n";
+    cout << code;*/
 
     return 0;
 }

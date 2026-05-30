@@ -8,6 +8,7 @@ int a = 10;
 int b = 20;
 int result;
 result = a + b;
+овопвдаплврв
 if (result > 25) {
 globalCounter = globalCounter + 1;
 }
